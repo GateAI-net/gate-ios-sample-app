@@ -197,7 +197,7 @@ class GateAISampleViewModel: ObservableObject {
 
     private func setupConfiguration() {
         #if targetEnvironment(simulator)
-        let devToken = "eyJr..."
+        let devToken = "your-dev-token-here"
         #else
         let devToken: String? = nil
         #endif
@@ -206,7 +206,7 @@ class GateAISampleViewModel: ObservableObject {
             // Using the convenience initializer with String URL and auto-detected bundle ID
             configuration = try GateAIConfiguration(
                 baseURLString: "https://[gate-name].us01.gate-ai.net",
-                teamIdentifier: "AB12C3D456",
+                teamIdentifier: "YOUR-TEAM-ID",
                 developmentToken: devToken,
                 logLevel: .debug  // Enable debug logging to see all requests/responses
             )
