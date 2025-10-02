@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		C8A861182E8ECEB10017CE3F /* GateAI in Frameworks */ = {isa = PBXBuildFile; productRef = C8A861172E8ECEB10017CE3F /* GateAI */; };
 		C8EDC3F52E8B653B006250E8 /* GateAI in Frameworks */ = {isa = PBXBuildFile; productRef = C8EDC3F42E8B653B006250E8 /* GateAI */; };
 		E80F4F2E2C9A123456789ABC /* GateAISampleApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = E80F4F2D2C9A123456789ABC /* GateAISampleApp.swift */; };
 		E80F4F302C9A123456789ABC /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E80F4F2F2C9A123456789ABC /* ContentView.swift */; };
@@ -29,6 +30,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				C8EDC3F52E8B653B006250E8 /* GateAI in Frameworks */,
+				C8A861182E8ECEB10017CE3F /* GateAI in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -117,7 +119,7 @@
 			);
 			mainGroup = E80F4F212C9A123456789ABC;
 			packageReferences = (
-				C8EDC3F32E8B653B006250E8 /* XCLocalSwiftPackageReference "../gate-ios" */,
+				C8A861162E8ECEB10017CE3F /* XCRemoteSwiftPackageReference "gate-ios" */,
 			);
 			productRefGroup = E80F4F2B2C9A123456789ABC /* Products */;
 			projectDirPath = "";
@@ -359,14 +361,23 @@
 		};
 /* End XCConfigurationList section */
 
-/* Begin XCLocalSwiftPackageReference section */
-		C8EDC3F32E8B653B006250E8 /* XCLocalSwiftPackageReference "../gate-ios" */ = {
-			isa = XCLocalSwiftPackageReference;
-			relativePath = "../gate-ios";
+/* Begin XCRemoteSwiftPackageReference section */
+		C8A861162E8ECEB10017CE3F /* XCRemoteSwiftPackageReference "gate-ios" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/LAND-MK-1/gate-ios";
+			requirement = {
+				branch = master;
+				kind = branch;
+			};
 		};
-/* End XCLocalSwiftPackageReference section */
+/* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		C8A861172E8ECEB10017CE3F /* GateAI */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C8A861162E8ECEB10017CE3F /* XCRemoteSwiftPackageReference "gate-ios" */;
+			productName = GateAI;
+		};
 		C8EDC3F42E8B653B006250E8 /* GateAI */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = GateAI;
