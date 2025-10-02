@@ -61,27 +61,31 @@ Edit the configuration in `ContentView.swift`:
 
 ```swift
 private func setupConfiguration() {
-    guard let baseURL = URL(string: "https://yourteam.us01.gate-ai.net") else {
-        lastError = "Invalid base URL"
-        return
-    }
-
-    let bundleIdentifier = Bundle.main.bundleIdentifier ?? "com.yourcompany.GateAISample"
-
     #if targetEnvironment(simulator)
     let devToken = "your-actual-dev-token-here"
     #else
     let devToken: String? = nil
     #endif
 
-    configuration = GateAIConfiguration(
-        baseURL: baseURL,
-        bundleIdentifier: bundleIdentifier,
-        teamIdentifier: "YOUR_ACTUAL_TEAM_ID",
-        developmentToken: devToken
-    )
+    do {
+        // Using the convenience initializer - bundle ID is auto-detected from Bundle.main
+        configuration = try GateAIConfiguration(
+            baseURLString: "https://yourteam.us01.gate-ai.net",
+            teamIdentifier: "YOUR_ACTUAL_TEAM_ID", // Must be exactly 10 alphanumeric characters
+            developmentToken: devToken,
+            logLevel: .debug
+        )
+
+        if let config = configuration {
+            gateAIClient = GateAIClient(configuration: config)
+        }
+    } catch {
+        lastError = "Configuration error: \(error.localizedDescription)"
+    }
 }
 ```
+
+**Note:** The configuration initializer now validates inputs and throws errors for invalid values (e.g., malformed URLs, invalid team IDs).
 
 ## Usage
 
@@ -117,35 +121,46 @@ private func setupConfiguration() {
 ## Key SDK APIs Demonstrated
 
 ```swift
-// Initialize the client
-let gateAIClient = GateAIClient(configuration: configuration)
+// Initialize the configuration (throws if validation fails)
+do {
+    let configuration = try GateAIConfiguration(
+        baseURLString: "https://yourteam.us01.gate-ai.net",
+        teamIdentifier: "ABCDE12345",
+        developmentToken: devToken,
+        logLevel: .debug
+    )
 
-// Get access token
-let accessToken = try await gateAIClient.currentAccessToken()
+    let gateAIClient = GateAIClient(configuration: configuration)
 
-// Get authorization headers for a request
-let headers = try await gateAIClient.authorizationHeaders(
-    for: "openai/chat/completions",
-    method: .post
-)
+    // Get access token
+    let accessToken = try await gateAIClient.currentAccessToken()
 
-// Make a proxy request with automatic auth
-let (data, response) = try await gateAIClient.performProxyRequest(
-    path: "openai/chat/completions",
-    method: .post,
-    body: requestBody,
-    additionalHeaders: ["Content-Type": "application/json"]
-)
+    // Get authorization headers for a request
+    let headers = try await gateAIClient.authorizationHeaders(
+        for: "openai/chat/completions",
+        method: .post
+    )
 
-// Clear cached state
-await gateAIClient.clearCachedState()
+    // Make a proxy request with automatic auth
+    let (data, response) = try await gateAIClient.performProxyRequest(
+        path: "openai/chat/completions",
+        method: .post,
+        body: requestBody,
+        additionalHeaders: ["Content-Type": "application/json"]
+    )
+
+    // Clear cached state
+    await gateAIClient.clearCachedState()
+} catch {
+    print("Error: \(error.localizedDescription)")
+}
 ```
 
 ## Error Handling
 
 The app demonstrates proper error handling for common scenarios:
 
-- Configuration errors
+- Configuration errors (invalid URLs, malformed team IDs, empty bundle IDs)
 - Authentication failures
 - Network errors
 - Gate/AI specific errors (device blocked, rate limited, etc.)
@@ -167,10 +182,12 @@ The app demonstrates proper error handling for common scenarios:
 
 ### Common Issues
 
-1. **"Client not configured"**: Check your base URL, team ID, and bundle identifier
-2. **Authentication failures**: Verify your tenant configuration and App Attest setup
-3. **Build errors**: Ensure iOS-Swift package is properly added and Xcode version is 16.0+
-4. **App Attest errors**: Verify entitlements and test on physical device
+1. **"Configuration error: teamIdentifier must be exactly 10 characters"**: Your Apple Team ID must be exactly 10 alphanumeric characters (e.g., "ABCDE12345"). Find it in your Apple Developer account or Xcode project settings.
+2. **"Configuration error: Invalid base URL"**: Verify the base URL string is valid (e.g., "https://yourteam.us01.gate-ai.net")
+3. **"Client not configured"**: Check your base URL, team ID, and bundle identifier
+4. **Authentication failures**: Verify your tenant configuration and App Attest setup
+5. **Build errors**: Ensure GateAI package is properly added and Xcode version is 16.0+
+6. **App Attest errors**: Verify entitlements and test on physical device
 
 ### Debugging Tips
 

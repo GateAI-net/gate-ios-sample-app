@@ -196,33 +196,26 @@ class GateAISampleViewModel: ObservableObject {
     }
 
     private func setupConfiguration() {
-//        guard let baseURL = URL(string: "https://demo.us01.gate-ai.net") else {
-//            lastError = "Invalid base URL"
-//            return
-//        }
-        guard let baseURL = URL(string: "http://localhost:8080") else {
-            lastError = "Invalid base URL"
-            return
-        }
-
-        let bundleIdentifier = Bundle.main.bundleIdentifier ?? "com.example.GateAISample"
-
         #if targetEnvironment(simulator)
-        let devToken = "eyJraWQiOiJwb3J0YWwtMjAyNS0wMSIsImFsZyI6IkVTMjU2In0.eyJpc3MiOiJodHRwczovL3BvcnRhbC5nYXRlLWFpLm5ldCIsImF1ZCI6ImdhdGUtYWk6c3RhZ2luZyIsInN1YiI6ImRldjoxIiwidGVuIjoiZmFjZWJvb2siLCJzY29wZSI6ImRldjp0b2tlbiIsImlhdCI6MTc1OTE5MDE1MCwiZXhwIjoxNzYxNzgyMTUwLCJqdGkiOiI1NWYzNDA1MS00ZGJmLTQwOWEtYTAxZS1mOWVjMDA4OTYwMjEiLCJ2IjoxfQ.erKdzk1N4ogDjp1yjPIuFzoxrSZgAYC5B9ayEbj7OUQV4xRoBUUx3RAGrgOZYkZLG93rbehWHirrL9duwAOE9A"
+        let devToken = "eyJr..."
         #else
         let devToken: String? = nil
         #endif
 
-        configuration = GateAIConfiguration(
-            baseURL: baseURL,
-            bundleIdentifier: bundleIdentifier,
-            teamIdentifier: "YOUR_TEAM_ID",
-            developmentToken: devToken,
-            logLevel: .debug  // Enable debug logging to see all requests/responses
-        )
+        do {
+            // Using the convenience initializer with String URL and auto-detected bundle ID
+            configuration = try GateAIConfiguration(
+                baseURLString: "https://[gate-name].us01.gate-ai.net",
+                teamIdentifier: "AB12C3D456",
+                developmentToken: devToken,
+                logLevel: .debug  // Enable debug logging to see all requests/responses
+            )
 
-        if let config = configuration {
-            gateAIClient = GateAIClient(configuration: config)
+            if let config = configuration {
+                gateAIClient = GateAIClient(configuration: config)
+            }
+        } catch {
+            lastError = "Configuration error: \(error.localizedDescription)"
         }
     }
 
@@ -300,7 +293,14 @@ class GateAISampleViewModel: ObservableObject {
         lastResponse = nil
 
         await client.clearCachedState()
-        lastResponse = "✅ Cache cleared successfully!"
+
+        // Also clear App Attest key
+        do {
+            try client.clearAppAttestKey()
+            lastResponse = "✅ Cache and App Attest key cleared successfully!"
+        } catch {
+            lastResponse = "✅ Cache cleared, but failed to clear App Attest key: \(error.localizedDescription)"
+        }
 
         isLoading = false
     }
