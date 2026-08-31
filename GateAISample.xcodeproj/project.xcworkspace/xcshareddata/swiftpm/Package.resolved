@@ -1,13 +1,13 @@
 {
-  "originHash" : "008501af23e1b70046135106105ff6ea9af68455befc411ac5cfb8a831ad985e",
+  "originHash" : "a58e9ff6e7abac2c5901b2e0f8d4f696a7a7da099333adf183e1d437720916b9",
   "pins" : [
     {
       "identity" : "gate-ios",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/LAND-MK-1/gate-ios",
+      "location" : "https://github.com/GateAI-net/gate-ios",
       "state" : {
-        "branch" : "master",
-        "revision" : "c004a52ffba796a10ce51e61e6d84c866d36d702"
+        "revision" : "8acd2c304690675ff9aafe9752cbb0ff955629e4",
+        "version" : "1.1.0"
       }
     }
   ],

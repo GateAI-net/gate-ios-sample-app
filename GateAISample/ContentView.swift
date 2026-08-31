@@ -13,6 +13,8 @@ struct ContentView: View {
 
                 actionsSection
 
+                usageSection
+
                 responseSection
 
                 Spacer()
@@ -83,6 +85,43 @@ struct ContentView: View {
                         .foregroundColor(viewModel.hasDevToken ? .green : .red)
                 }
 
+            }
+        }
+    }
+
+    /// Remaining device quota from the last proxy response. Gates without device
+    /// usage limits send no quota headers, so this stays hidden until a limit is set.
+    @ViewBuilder
+    private var usageSection: some View {
+        if let quota = viewModel.quotaStatus {
+            GroupBox("Device usage") {
+                VStack(alignment: .leading, spacing: 10) {
+                    if let limit = quota.requestsLimit, let remaining = quota.requestsRemaining {
+                        quotaMeter(label: "Requests", used: limit - remaining, limit: limit, resetsAt: quota.requestsResetAt)
+                    }
+                    if let limit = quota.tokensLimit, let remaining = quota.tokensRemaining {
+                        quotaMeter(label: "Tokens", used: limit - remaining, limit: limit, resetsAt: quota.tokensResetAt)
+                    }
+                }
+            }
+        }
+    }
+
+    private func quotaMeter(label: String, used: Int, limit: Int, resetsAt: Date?) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                Text(label).fontWeight(.medium)
+                Spacer()
+                Text("\(used.formatted()) / \(limit.formatted())")
+                    .font(.caption)
+                    .monospacedDigit()
+                    .foregroundColor(.secondary)
+            }
+            ProgressView(value: Double(used), total: Double(max(limit, 1)))
+            if let resetsAt {
+                Text("Resets \(resetsAt.formatted(date: .abbreviated, time: .shortened))")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
             }
         }
     }
@@ -180,6 +219,7 @@ class GateAISampleViewModel: ObservableObject {
     @Published var isLoading = false
     @Published var lastResponse: String?
     @Published var lastError: String?
+    @Published var quotaStatus: GateAIQuotaStatus?
 
     private var gateAIClient: GateAIClient?
 
@@ -196,23 +236,33 @@ class GateAISampleViewModel: ObservableObject {
     }
 
     private func setupConfiguration() {
-        #if targetEnvironment(simulator)
-        let devToken = "your-dev-token-here"
-        #else
-        let devToken: String? = nil
-        #endif
-
         do {
-            // Using the convenience initializer with String URL and auto-detected bundle ID
+            // Using the convenience initializer with String URL and auto-detected bundle ID.
+            // In the simulator the SDK reads a development token from the
+            // GATE_AI_DEV_TOKEN environment variable (set it on the Run scheme);
+            // on a device it uses App Attest and ignores the variable.
             configuration = try GateAIConfiguration(
-                baseURLString: "https://[gate-name].us01.gate-ai.net",
+                baseURLString: "https://[gate-name].in.gate-ai.net",
                 teamIdentifier: "YOUR-TEAM-ID",
-                developmentToken: devToken,
                 logLevel: .debug  // Enable debug logging to see all requests/responses
             )
 
             if let config = configuration {
-                gateAIClient = GateAIClient(configuration: config)
+                let client = GateAIClient(configuration: config)
+
+                // Analytics (optional): break down usage in the Portal by user,
+                // feature, and segment. Use an opaque ID — never an email or name.
+                client.userIdentifier = "sample-user-1"
+                client.appFeature = "joke"
+                client.userStatus = "trial"
+
+                // Usage limits: `userTier` is the exact, case-sensitive key for
+                // per-tier limits configured on the gate; `quotaAnchorDay` (1–31)
+                // lets a billing-cycle budget reset on this user's renewal day.
+                client.userTier = "free"
+                client.quotaAnchorDay = 15
+
+                gateAIClient = client
             }
         } catch {
             lastError = "Configuration error: \(error.localizedDescription)"
@@ -271,9 +321,21 @@ class GateAISampleViewModel: ObservableObject {
             let responseText = String(data: data, encoding: .utf8) ?? "Unable to decode response"
             lastResponse = "✅ Proxy request successful!\n\nStatus: \(response.statusCode)\n\nResponse:\n\(responseText)"
 
+            // Remaining device quota rides along on every response once the gate
+            // has usage limits configured; render it as a meter.
+            quotaStatus = response.gateAIQuotaStatus
+
         } catch {
             if let gateError = error as? GateAIError {
-                lastError = "Proxy request failed: \(gateError)"
+                if let limit = gateError.rateLimitInfo {
+                    // A structured 429: tell the user which budget closed and when it
+                    // reopens — the natural place for an upgrade prompt.
+                    let window = limit.window?.rawValue ?? "unknown"
+                    let reset = limit.resetsAt.map { $0.formatted(date: .abbreviated, time: .shortened) } ?? "later"
+                    lastError = "⏳ Rate limited (\(limit.code)): \(limit.used ?? 0)/\(limit.limit ?? 0) in the \(window) window. Resets \(reset)."
+                } else {
+                    lastError = "Proxy request failed: \(gateError)"
+                }
             } else {
                 lastError = "Proxy request failed: \(error.localizedDescription)"
             }

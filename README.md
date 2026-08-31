@@ -1,6 +1,8 @@
 # Gate/AI iOS SDK Sample App
 
-This sample iOS application demonstrates how to integrate and use the Gate/AI iOS SDK for secure API gateway authentication. The app showcases the key features of the SDK including authentication, proxy requests, and cache management.
+This sample iOS application demonstrates how to integrate and use the Gate/AI iOS SDK for secure API gateway authentication. The app showcases the key features of the SDK including authentication, proxy requests, cache management, analytics properties, and device usage limits.
+
+It depends on the [`GateAI` Swift package](https://github.com/GateAI-net/gate-ios) at version 1.1.0 or newer.
 
 Use this app as a reference or as troubleshooting if you encounter issues adding to your existing project.
 
@@ -18,9 +20,9 @@ Use this app as a reference or as troubleshooting if you encounter issues adding
 
 1. Open `GateAISample.xcodeproj` in Xcode
 2. Update the following in `ContentView.swift`:
-   - Replace `"https://[gate-name].us01.gate-ai.net"` with your actual Gate/AI tenant URL
+   - Replace `"https://[gate-name].in.gate-ai.net"` with your actual Gate/AI tenant URL
    - Replace `"YOUR_TEAM_ID"` with your Apple Team ID
-   - For simulator testing, replace `"your-dev-token-here"` with a valid development token
+   - For simulator testing, set the `GATE_AI_DEV_TOKEN` environment variable on the Run scheme (Product → Scheme → Edit Scheme → Run → Arguments → Environment Variables) to a development token from the gate's **Gate** panel in the Portal. The SDK reads it automatically in the simulator and ignores it on devices, so the token never lands in source.
 
 ### 2. Configure Code Signing
 
@@ -55,6 +57,12 @@ This (`GateAIClient.performProxyRequest()`) is what you would follow in normal u
    - Handling of nonce challenges (401 responses)
    - Successful proxy request to OpenAI API
 
+### Analytics & usage limits
+
+`setupConfiguration()` sets the optional analytics properties once on the client — `userIdentifier` (an opaque ID, never PII), `appFeature`, and `userStatus` — plus the two that drive device usage limits: `userTier`, the exact key for per-tier limits configured on the gate, and `quotaAnchorDay`, which lets a billing-cycle budget reset on the user's renewal day.
+
+After a proxy request, the **Device usage** panel renders `response.gateAIQuotaStatus` as request and token meters with reset dates. When a limit is hit, the SDK surfaces the structured 429 as `GateAIError.rateLimitInfo`, and the sample shows which window closed and when it reopens — the moment to offer an upgrade. Configure limits on the gate's Quotas panel in the Portal; without them, no quota headers are sent and the panel stays hidden.
+
 ### Clearing Cache
 
 This is useful for testing purposes only. It should not be necessary in production use. If it is needed, open an issue on GitHub.
@@ -74,9 +82,8 @@ This is useful for testing purposes only. It should not be necessary in producti
 // Initialize the configuration (throws if validation fails)
 do {
     let configuration = try GateAIConfiguration(
-        baseURLString: "https://yourteam.us01.gate-ai.net",
+        baseURLString: "https://yourteam.in.gate-ai.net",
         teamIdentifier: "ABCDE12345",
-        developmentToken: devToken,
         logLevel: .debug
     )
 
@@ -119,7 +126,7 @@ The app demonstrates proper error handling for common scenarios:
 ## Development vs Production
 
 ### Simulator Testing
-- Uses development tokens when running in simulator
+- Uses the development token from the `GATE_AI_DEV_TOKEN` environment variable when running in the simulator
 - App Attest is bypassed (not available in simulator)
 - Secure Enclave keys are still used for DPoP
 
@@ -133,7 +140,7 @@ The app demonstrates proper error handling for common scenarios:
 ### Common Issues
 
 1. **"Configuration error: teamIdentifier must be exactly 10 characters"**: Your Apple Team ID must be exactly 10 alphanumeric characters (e.g., "ABCDE12345"). Find it in your Apple Developer account or Xcode project settings.
-2. **"Configuration error: Invalid base URL"**: Verify the base URL string is valid (e.g., "https://yourgate.us01.gate-ai.net")
+2. **"Configuration error: Invalid base URL"**: Verify the base URL string is valid (e.g., "https://yourgate.in.gate-ai.net")
 3. **"Client not configured"**: Check your base URL, team ID, and bundle identifier
 4. **Authentication failures**: Verify your tenant configuration and App Attest setup
 5. **Build errors**: Ensure GateAI package is properly added and Xcode version is 16.0+
