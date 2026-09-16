@@ -16,21 +16,34 @@ Use this app as a reference or as troubleshooting if you encounter issues adding
 
 ## Setup Instructions
 
-### 1. Configure the Project
+### 1. Create Your Local Configuration
 
-1. Open `GateAISample.xcodeproj` in Xcode
-2. Update the following in `ContentView.swift`:
-   - Replace `"https://[gate-name].in.gate-ai.net"` with your actual Gate/AI tenant URL
-   - Replace `"YOUR_TEAM_ID"` with your Apple Team ID
-   - For simulator testing, set the `GATE_AI_DEV_TOKEN` environment variable on the Run scheme (Product → Scheme → Edit Scheme → Run → Arguments → Environment Variables) to a development token from the gate's **Gate** panel in the Portal. The SDK reads it automatically in the simulator and ignores it on devices, so the token never lands in source.
+From this directory:
 
-### 2. Configure Code Signing
+```bash
+cp Local.xcconfig.example Local.xcconfig
+```
 
-1. Select the `GateAISample` target in Xcode
-2. Go to **Signing & Capabilities**
-3. Set your development team
-4. Update the bundle identifier to match your Apple Developer account
-5. Ensure **App Attest** capability is enabled
+Edit `Local.xcconfig` with your Apple team ID, unique bundle identifier, and gate URL:
+
+```xcconfig
+DEVELOPMENT_TEAM = YOURTEAMID
+PRODUCT_BUNDLE_IDENTIFIER = com.yourcompany.GateAISample
+GATE_BASE_URL = https:/$()/your-gate.in.gate-ai.net
+```
+
+Keep the `$()` in the URL: it expands to nothing and prevents `//` from being treated as an xcconfig comment. Use a 10-character Apple team ID, including for simulator testing.
+
+`Local.xcconfig` is ignored by Git. Both Debug and Release load it through `Config.xcconfig`. The app reads the gate URL and signing team from its built Info.plist, so no Swift source edits are needed. Without local settings, the app builds but displays a configuration message.
+
+### 2. Build and Run
+
+1. Open `GateAISample.xcodeproj` in Xcode.
+2. Select the `GateAISample` scheme and your device or simulator, then run (⌘R).
+3. For physical devices, ensure your configured bundle ID supports App Attest and register the team/bundle ID with your gate. Automatic signing uses the team in `Local.xcconfig`; your Apple account must be added to Xcode.
+4. For simulator testing, set `GATE_AI_DEV_TOKEN` on a **personal, unshared Run scheme** (Product → Scheme → Manage Schemes, uncheck Shared; then Edit Scheme → Run → Arguments → Environment Variables). The SDK reads it automatically in the simulator and ignores it on devices. User schemes under `xcuserdata` are ignored by Git.
+
+Change personal signing settings in `Local.xcconfig`, rather than Signing & Capabilities, which writes overrides into the tracked project. Rebuild after changing local settings. Keep development tokens out of xcconfig/Info.plist.
 
 ## Usage
 

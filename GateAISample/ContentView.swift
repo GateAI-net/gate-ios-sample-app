@@ -236,14 +236,22 @@ class GateAISampleViewModel: ObservableObject {
     }
 
     private func setupConfiguration() {
+        guard let baseURL = Bundle.main.object(forInfoDictionaryKey: "GateBaseURL") as? String,
+              !baseURL.isEmpty,
+              let teamIdentifier = Bundle.main.object(forInfoDictionaryKey: "GateTeamIdentifier") as? String,
+              !teamIdentifier.isEmpty else {
+            lastError = "Copy Local.xcconfig.example to Local.xcconfig and set your team ID and gate URL, then rebuild."
+            return
+        }
+
         do {
             // Using the convenience initializer with String URL and auto-detected bundle ID.
             // In the simulator the SDK reads a development token from the
             // GATE_AI_DEV_TOKEN environment variable (set it on the Run scheme);
             // on a device it uses App Attest and ignores the variable.
             configuration = try GateAIConfiguration(
-                baseURLString: "https://[gate-name].in.gate-ai.net",
-                teamIdentifier: "YOUR-TEAM-ID",
+                baseURLString: baseURL,
+                teamIdentifier: teamIdentifier,
                 logLevel: .debug  // Enable debug logging to see all requests/responses
             )
 

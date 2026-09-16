@@ -1,0 +1,6 @@
+// Shared defaults. Put personal settings in Local.xcconfig.
+DEVELOPMENT_TEAM =
+PRODUCT_BUNDLE_IDENTIFIER = com.example.GateAISample
+GATE_BASE_URL =
+
+#include? "Local.xcconfig"
