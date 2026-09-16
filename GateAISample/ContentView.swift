@@ -5,219 +5,191 @@ struct ContentView: View {
     @StateObject private var viewModel = GateAISampleViewModel()
 
     var body: some View {
-        NavigationView {
-            VStack(spacing: 20) {
-                headerSection
-
+        NavigationStack {
+            List {
                 configurationSection
-
                 actionsSection
-
                 usageSection
-
                 responseSection
-
-                Spacer()
             }
-            .padding()            
+            .listStyle(.insetGrouped)
+            .navigationTitle("Gate/AI Demo")
+            .navigationBarTitleDisplayMode(.inline)
         }
     }
 
-    private var headerSection: some View {
-        VStack(spacing: 8) {
-            Image(systemName: "lock.shield")
-                .font(.system(size: 50))
-                .foregroundColor(.blue)
-
-            Text("Gate/AI SDK Demo")
-                .font(.title2)
-                .fontWeight(.semibold)
-
-            Text("Demonstrates secure API gateway authentication")
-                .font(.caption)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-        }
-    }
+    // MARK: - Configuration
 
     private var configurationSection: some View {
-        GroupBox {
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    Text("Base URL:")
-                        .fontWeight(.medium)
-                    Spacer()
-                    Text(viewModel.configuration?.baseURL.absoluteString ?? "Not set")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-
-                HStack {
-                    Text("Bundle ID:")
-                        .fontWeight(.medium)
-                    Spacer()
-                    Text(viewModel.configuration?.bundleIdentifier ?? "Not set")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-
-                HStack {
-                    Text("Environment:")
-                        .fontWeight(.medium)
-                    Spacer()
-                    #if targetEnvironment(simulator)
-                    Text("Simulator")
-                        .font(.caption)
-                        .foregroundColor(.orange)
-                    #else
-                    Text("Device")
-                        .font(.caption)
-                        .foregroundColor(.blue)
-                    #endif
-                }
-
-                HStack {
-                    Text("Dev Token Set:")
-                        .fontWeight(.medium)
-                    Spacer()
-                    Text(viewModel.hasDevToken ? "Yes" : "No")
-                        .font(.caption)
-                        .foregroundColor(viewModel.hasDevToken ? .green : .red)
-                }
-
+        Section("Configuration") {
+            configRow("Gate URL", value: viewModel.configuration?.baseURL.host ?? "Not set")
+            configRow("Bundle ID", value: viewModel.configuration?.bundleIdentifier ?? "Not set")
+            configRow("Environment", value: environmentLabel)
+            HStack {
+                Text("Dev token")
+                Spacer()
+                Label(viewModel.hasDevToken ? "Set" : "Not set",
+                      systemImage: viewModel.hasDevToken ? "checkmark.circle.fill" : "minus.circle")
+                    .font(.subheadline)
+                    .foregroundStyle(viewModel.hasDevToken ? Color.green : Color.secondary)
             }
         }
     }
+
+    private func configRow(_ label: String, value: String) -> some View {
+        HStack {
+            Text(label)
+            Spacer()
+            Text(value)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .truncationMode(.middle)
+        }
+    }
+
+    private var environmentLabel: String {
+        #if targetEnvironment(simulator)
+        "Simulator"
+        #else
+        "Device"
+        #endif
+    }
+
+    // MARK: - Actions
+
+    private var actionsSection: some View {
+        Group {
+            Section {
+                Button {
+                    Task { await viewModel.testProxyRequest() }
+                } label: {
+                    HStack(spacing: 8) {
+                        if viewModel.isLoading {
+                            ProgressView().tint(.white)
+                        } else {
+                            Image(systemName: "paperplane.fill")
+                        }
+                        Text("Send Proxy Request")
+                    }
+                    .font(.headline)
+                    .frame(maxWidth: .infinity, minHeight: 32)
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
+                .disabled(!viewModel.isConfigured || viewModel.isLoading)
+                .listRowInsets(EdgeInsets())
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
+            } header: {
+                Text("Actions")
+            } footer: {
+                Text("Asks Gemini for a joke through your gate and shows the raw response.")
+            }
+
+            Section {
+                Button {
+                    Task { await viewModel.testAuthentication() }
+                } label: {
+                    Label("Test Authentication", systemImage: "person.badge.key")
+                }
+                .disabled(!viewModel.isConfigured || viewModel.isLoading)
+
+                Button(role: .destructive) {
+                    Task { await viewModel.clearCache() }
+                } label: {
+                    Label("Clear Cache & App Attest Key", systemImage: "trash")
+                }
+                .disabled(!viewModel.isConfigured || viewModel.isLoading)
+            }
+        }
+    }
+
+    // MARK: - Usage
 
     /// Remaining device quota from the last proxy response. Gates without device
     /// usage limits send no quota headers, so this stays hidden until a limit is set.
     @ViewBuilder
     private var usageSection: some View {
         if let quota = viewModel.quotaStatus {
-            GroupBox("Device usage") {
-                VStack(alignment: .leading, spacing: 10) {
-                    if let limit = quota.requestsLimit, let remaining = quota.requestsRemaining {
-                        quotaMeter(label: "Requests", used: limit - remaining, limit: limit, resetsAt: quota.requestsResetAt)
-                    }
-                    if let limit = quota.tokensLimit, let remaining = quota.tokensRemaining {
-                        quotaMeter(label: "Tokens", used: limit - remaining, limit: limit, resetsAt: quota.tokensResetAt)
-                    }
+            Section("Device usage") {
+                if let limit = quota.requestsLimit, let remaining = quota.requestsRemaining {
+                    quotaMeter(label: "Requests", used: limit - remaining, limit: limit, resetsAt: quota.requestsResetAt)
+                }
+                if let limit = quota.tokensLimit, let remaining = quota.tokensRemaining {
+                    quotaMeter(label: "Tokens", used: limit - remaining, limit: limit, resetsAt: quota.tokensResetAt)
                 }
             }
         }
     }
 
     private func quotaMeter(label: String, used: Int, limit: Int, resetsAt: Date?) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack {
-                Text(label).fontWeight(.medium)
-                Spacer()
+        let fraction = Double(used) / Double(max(limit, 1))
+        return VStack(alignment: .leading, spacing: 8) {
+            Gauge(value: min(fraction, 1)) {
+                Text(label)
+            } currentValueLabel: {
                 Text("\(used.formatted()) / \(limit.formatted())")
-                    .font(.caption)
                     .monospacedDigit()
-                    .foregroundColor(.secondary)
             }
-            ProgressView(value: Double(used), total: Double(max(limit, 1)))
+            .gaugeStyle(.linearCapacity)
+            .tint(fraction < 0.7 ? .green : fraction <= 0.9 ? .orange : .red)
+
             if let resetsAt {
-                Text("Resets \(resetsAt.formatted(date: .abbreviated, time: .shortened))")
-                    .font(.caption2)
-                    .foregroundColor(.secondary)
+                Text("Resets \(resetsAt.formatted(.relative(presentation: .named)))")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
         }
+        .padding(.vertical, 4)
     }
 
-    private var actionsSection: some View {
-        VStack(spacing: 12) {
-            Button(action: {
-                Task {
-                    await viewModel.testAuthentication()
-                }
-            }) {
-                HStack {
-                    Image(systemName: "person.badge.key")
-                    Text("Test Authentication")
-                }
-                .frame(maxWidth: .infinity)
-                .padding()
-                .background(Color.blue)
-                .foregroundColor(.white)
-                .cornerRadius(8)
-            }
-            .disabled(!viewModel.isConfigured || viewModel.isLoading)
-
-            Button(action: {
-                Task {
-                    await viewModel.testProxyRequest()
-                }
-            }) {
-                HStack {
-                    Image(systemName: "arrow.left.arrow.right")
-                    Text("Test Proxy Request")
-                }
-                .frame(maxWidth: .infinity)
-                .padding()
-                .background(Color.green)
-                .foregroundColor(.white)
-                .cornerRadius(8)
-            }
-            .disabled(!viewModel.isConfigured || viewModel.isLoading)
-
-            Button(action: {
-                Task {
-                    await viewModel.clearCache()
-                }
-            }) {
-                HStack {
-                    Image(systemName: "trash")
-                    Text("Clear Cache")
-                }
-                .frame(maxWidth: .infinity)
-                .padding()
-                .background(Color.orange)
-                .foregroundColor(.white)
-                .cornerRadius(8)
-            }
-            .disabled(!viewModel.isConfigured || viewModel.isLoading)
-        }
-    }
+    // MARK: - Response
 
     private var responseSection: some View {
-        GroupBox("Response") {
-            ScrollView {
+        Section("Response") {
+            if let error = viewModel.lastError {
+                Label(error, systemImage: "exclamationmark.triangle.fill")
+                    .font(.subheadline)
+                    .foregroundStyle(.red)
+                    .textSelection(.enabled)
+            } else if let response = viewModel.lastResponse {
                 VStack(alignment: .leading, spacing: 8) {
-                    if viewModel.isLoading {
-                        HStack {
-                            ProgressView()
-                                .scaleEffect(0.8)
-                            Text("Processing...")
-                                .font(.caption)
-                        }
-                    }
-
-                    if let error = viewModel.lastError {
-                        Label(error, systemImage: "exclamationmark.triangle")
-                            .foregroundColor(.red)
-                            .font(.caption)
-                    }
-
-                    if let response = viewModel.lastResponse {
-                        Text(response)
-                            .font(.caption)
-                            .foregroundColor(.primary)
+                    Label(response.title, systemImage: "checkmark.circle.fill")
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(.green)
+                    if let detail = response.detail {
+                        Text(detail)
+                            .font(.system(.caption, design: .monospaced))
+                            .foregroundStyle(.secondary)
+                            .textSelection(.enabled)
                     }
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.vertical, 4)
+            } else if viewModel.isLoading {
+                Text("Waiting for the gate…")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            } else {
+                Text("Run an action to see its result here.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
             }
-            .frame(minHeight: 100, maxHeight: 200)
         }
     }
+}
+
+/// A successful outcome: a one-line summary plus optional raw detail (token, JSON body).
+struct SampleResponse {
+    let title: String
+    var detail: String? = nil
 }
 
 @MainActor
 class GateAISampleViewModel: ObservableObject {
     @Published var configuration: GateAIConfiguration?
     @Published var isLoading = false
-    @Published var lastResponse: String?
+    @Published var lastResponse: SampleResponse?
     @Published var lastError: String?
     @Published var quotaStatus: GateAIQuotaStatus?
 
@@ -289,7 +261,10 @@ class GateAISampleViewModel: ObservableObject {
 
         do {
             let accessToken = try await client.currentAccessToken()
-            lastResponse = "✅ Authentication successful!\n\nAccess token received (showing first 20 chars): \(String(accessToken.prefix(20)))..."
+            lastResponse = SampleResponse(
+                title: "Authenticated",
+                detail: "Access token (first 20 chars): \(String(accessToken.prefix(20)))…"
+            )
         } catch {
             lastError = "Authentication failed: \(error.localizedDescription)"
         }
@@ -327,7 +302,10 @@ class GateAISampleViewModel: ObservableObject {
             )
 
             let responseText = String(data: data, encoding: .utf8) ?? "Unable to decode response"
-            lastResponse = "✅ Proxy request successful!\n\nStatus: \(response.statusCode)\n\nResponse:\n\(responseText)"
+            lastResponse = SampleResponse(
+                title: "Proxy request succeeded (HTTP \(response.statusCode))",
+                detail: responseText
+            )
 
             // Remaining device quota rides along on every response once the gate
             // has usage limits configured; render it as a meter.
@@ -340,7 +318,7 @@ class GateAISampleViewModel: ObservableObject {
                     // reopens — the natural place for an upgrade prompt.
                     let window = limit.window?.rawValue ?? "unknown"
                     let reset = limit.resetsAt.map { $0.formatted(date: .abbreviated, time: .shortened) } ?? "later"
-                    lastError = "⏳ Rate limited (\(limit.code)): \(limit.used ?? 0)/\(limit.limit ?? 0) in the \(window) window. Resets \(reset)."
+                    lastError = "Rate limited (\(limit.code)): \(limit.used ?? 0)/\(limit.limit ?? 0) in the \(window) window. Resets \(reset)."
                 } else {
                     lastError = "Proxy request failed: \(gateError)"
                 }
@@ -367,9 +345,12 @@ class GateAISampleViewModel: ObservableObject {
         // Also clear App Attest key
         do {
             try client.clearAppAttestKey()
-            lastResponse = "✅ Cache and App Attest key cleared successfully!"
+            lastResponse = SampleResponse(title: "Cache and App Attest key cleared")
         } catch {
-            lastResponse = "✅ Cache cleared, but failed to clear App Attest key: \(error.localizedDescription)"
+            lastResponse = SampleResponse(
+                title: "Cache cleared",
+                detail: "App Attest key was not cleared: \(error.localizedDescription)"
+            )
         }
 
         isLoading = false
