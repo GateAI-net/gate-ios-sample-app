@@ -107,13 +107,13 @@ do {
 
     // Get authorization headers for a request
     let headers = try await gateAIClient.authorizationHeaders(
-        for: "openai/chat/completions",
+        for: "v1/chat/completions",
         method: .post
     )
 
     // Make a proxy request with automatic auth
     let (data, response) = try await gateAIClient.performProxyRequest(
-        path: "openai/chat/completions",
+        path: "v1/chat/completions",
         method: .post,
         body: requestBody,
         additionalHeaders: ["Content-Type": "application/json"]
